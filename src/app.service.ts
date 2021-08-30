@@ -31,7 +31,7 @@ export class AppService {
     const b = uint8ArrayConcat(data);
     const pngBuffer = await sharp(b)
       .rotate()
-      .resize(w ? Number(w) : null, h ? Number(h) : null)
+      .resize({ width: w ? Number(w) : null, height: h ? Number(h) : null, fit: 'inside', position: 'bottom', background: { r: 255, g: 255, b: 255, alpha: 0.5 } })
       .withMetadata()
       .png()
       .toBuffer()
