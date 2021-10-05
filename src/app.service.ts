@@ -6,6 +6,7 @@ const IPFS = require('ipfs');
 const all = require('it-all');
 const uint8ArrayConcat = require('uint8arrays/concat');
 const sharp = require('sharp');
+const FileType = require('file-type');
 
 
 @Injectable()
@@ -28,8 +29,10 @@ export class AppService {
     await this.init();
 
     const data = await all(this.node.cat(hash));
-    const b = uint8ArrayConcat(data);
-    const pngBuffer = await sharp(b)
+    // const datatype = await FileType.fromFile(data);
+    const buff = uint8ArrayConcat(data);
+    // const type = await FileType.fromBuffer(buff);
+    const pngBuffer = await sharp(buff)
       .rotate()
       .resize({ width: w ? Number(w) : null, height: h ? Number(h) : null, fit: 'inside', position: 'bottom', background: { r: 255, g: 255, b: 255, alpha: 0.5 } })
       .withMetadata()
