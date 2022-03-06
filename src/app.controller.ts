@@ -9,7 +9,6 @@ export class AppController {
   async fetchData(
     @Res() res,
     @Param('hash') hash: string,
-    @Query('auto') auto: string,
     @Query('r') r: string,
     @Query('t') t: string,
     @Query('w') w?: number | string,
@@ -25,7 +24,7 @@ export class AppController {
       if (t && t === 'avatar') {
         imgRes = await this.appService.avatar(hash, w ? Number(w) : 500);
       } else {
-        imgRes = await this.appService.ipfs(hash, auto, r, w, h, c, flip, flop, b);
+        imgRes = await this.appService.ipfs(hash, r, w, h, c, flip, flop, b);
       }
 
       res.send(Buffer.from(imgRes, 'binary'));
