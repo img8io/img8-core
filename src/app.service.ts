@@ -45,7 +45,6 @@ export class AppService {
    * Returns the processed image back.
    *
    * @param hash The IPFS CID
-   * @param auto
    * @param w The width
    * @param h The height
    * @param c Composite image(s) over the processed image
@@ -56,7 +55,6 @@ export class AppService {
    */
   async ipfs(
     hash: string,
-    auto: string,
     r: string,
     w: number | string,
     h: number | string,
