@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { CID } from 'multiformats';
+import { base16 } from 'multiformats/bases/base16';
 import { concat as uint8ArrayConcat } from 'uint8arrays/concat';
 
 const IPFS = require('ipfs-core');
@@ -20,6 +22,9 @@ export class AppService {
   async avatar(hash: string, w: number) {
     await this.init();
 
+    if (hash.startsWith('f') || hash.startsWith('F')) {
+      hash = CID.parse(hash, base16).toString();
+    }
     const data = await all(this.node.cat(hash));
     const buff = uint8ArrayConcat(data);
 
@@ -28,7 +33,7 @@ export class AppService {
       `<svg><circle cx="${r}" cy="${r}" r="${r}" /></svg>`
     );
 
-    const webpBuffer = sharp(buff)
+    const webpBuffer = await sharp(buff)
       .resize(w, w)
       .composite([
         {
@@ -45,9 +50,10 @@ export class AppService {
    * Returns the processed image back.
    *
    * @param hash The IPFS CID
+   * @param r Rotate the image with specified angle
    * @param w The width
    * @param h The height
-   * @param c Composite image(s) over the processed image
+   * @param c Composite image over the processed image
    * @param flip Flip the image about the vertical Y axis
    * @param flop Flop the image about the horizontal X axis
    * @param b Blur the image, if provided, performs a slower, more accurate Gaussian blur
@@ -55,16 +61,20 @@ export class AppService {
    */
   async ipfs(
     hash: string,
-    r: string,
+    r: number | string,
     w: number | string,
     h: number | string,
     c: string,
-    flip: boolean,
-    flop: boolean,
+    flip: boolean | string,
+    flop: boolean | string,
     b: number | string
   ) {
     try {
       await this.init();
+
+      if (hash.startsWith('f') || hash.startsWith('F')) {
+        hash = CID.parse(hash, base16).toString();
+      }
 
       const data = await all(this.node.cat(hash));
       const buff = uint8ArrayConcat(data);
@@ -75,29 +85,31 @@ export class AppService {
         image.rotate(Number(r));
       }
 
-      if (flip) {
+      if (flip && flip === 'true') {
         image.flip();
       }
 
-      if (flop) {
+      if (flop && flop === 'true') {
         image.flop();
       }
 
       image.resize({
         width: w ? Number(w) : null,
         height: h ? Number(h) : null,
-        fit: 'inside',
-        position: 'bottom'
       });
 
       if (b) {
-        image.blur(Number(b));
+        const blur = Number(b);
+        if (blur < 0.3 || blur > 1000) {
+          return Promise.reject('Invalid blur paratemer provided!');
+        }
+        image.blur(blur);
       }
 
       if (c) {
         const map = this.extractCompositeParameters(c);
         if (!map['cid']) {
-          return Promise.reject('Wrong composite paratemers provided!');
+          return Promise.reject('Invalid composite paratemers provided!');
         }
 
         try {
