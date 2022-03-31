@@ -165,6 +165,9 @@ export class AppService {
     g: string
   ) {
     try {
+      if (cid.startsWith('f') || cid.startsWith('F')) {
+        cid = CID.parse(cid, base16).toString();
+      }
       const data = await all(this.node.cat(cid));
       const ub = uint8ArrayConcat(data);
       const nestedImage = await sharp(ub);
