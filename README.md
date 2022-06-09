@@ -1,5 +1,7 @@
 # Img 8 core
 
+Migrated this repo to [Omnidata imghub](https://github.com/omnidata-network/imghub-core)
+
 A gateway for web3 developer and creators to easily retrieving images from decentralized storage networks (IPFS/Filecoin). Beyond that it's also a protocol to optimize and process images.
 
 ## Installation
