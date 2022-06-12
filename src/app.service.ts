@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CID } from 'multiformats';
 import { base16 } from 'multiformats/bases/base16';
 import { concat as uint8ArrayConcat } from 'uint8arrays/concat';
+import * as Sentry from '@sentry/node';
 
 const IPFS = require('ipfs-core');
 const all = require('it-all');
@@ -19,37 +20,42 @@ export class AppService {
     }
   }
 
-  async avatar(hash: string, w: number) {
-    await this.init();
+  async avatar(hash: string, name: string, w: number) {
+    try {
+      await this.init();
 
-    if (hash.startsWith('f') || hash.startsWith('F')) {
-      hash = CID.parse(hash, base16).toString();
+      if (hash.startsWith('f') || hash.startsWith('F')) {
+        hash = CID.parse(hash, base16).toString();
+      }
+      const data = await all(this.node.cat(!name ? hash : `/ipfs/${hash}/${name}`));
+      const buff = uint8ArrayConcat(data);
+
+      const r = w / 2;
+      const circleShape = Buffer.from(`<svg><circle cx="${r}" cy="${r}" r="${r}" /></svg>`);
+
+      const webpBuffer = await sharp(buff)
+        .resize(w, w)
+        .composite([
+          {
+            input: circleShape,
+            blend: 'dest-in'
+          }
+        ])
+        .webp()
+        .toBuffer();
+      return webpBuffer;
+    } catch (err) {
+      const errMsg = `avatar - error to process the image of ${hash}, error msg: ${err.message || err}`
+      Sentry.captureException(errMsg);
+      return Promise.reject(err.message || err);
     }
-    const data = await all(this.node.cat(hash));
-    const buff = uint8ArrayConcat(data);
-
-    const r = w / 2;
-    const circleShape = Buffer.from(
-      `<svg><circle cx="${r}" cy="${r}" r="${r}" /></svg>`
-    );
-
-    const webpBuffer = await sharp(buff)
-      .resize(w, w)
-      .composite([
-        {
-          input: circleShape,
-          blend: 'dest-in'
-        }
-      ])
-      .webp()
-      .toBuffer();
-    return webpBuffer;
   }
 
   /**
    * Returns the processed image back.
    *
    * @param hash The IPFS CID
+   * @param name The file name under the IPFS cid
    * @param r Rotate the image with specified angle
    * @param w The width
    * @param h The height
@@ -61,6 +67,7 @@ export class AppService {
    */
   async ipfs(
     hash: string,
+    name: string,
     r: number | string,
     w: number | string,
     h: number | string,
@@ -76,7 +83,8 @@ export class AppService {
         hash = CID.parse(hash, base16).toString();
       }
 
-      const data = await all(this.node.cat(hash));
+      const contentHash = !name ? hash : `/ipfs/${hash}/${name}`
+      const data = await all(this.node.cat(contentHash));
       const buff = uint8ArrayConcat(data);
 
       const image = await sharp(buff);
@@ -85,11 +93,11 @@ export class AppService {
         image.rotate(Number(r));
       }
 
-      if (flip && flip === 'true') {
+      if (flip || flip === 'true') {
         image.flip();
       }
-
-      if (flop && flop === 'true') {
+      
+      if (flop || flop === 'true') {
         image.flop();
       }
 
@@ -127,6 +135,7 @@ export class AppService {
             'error msg:',
             error.message || error
           );
+          Sentry.captureException(error);
           throw Error(error.message || error);
         }
       }
@@ -134,12 +143,8 @@ export class AppService {
       // return the png type buffer
       return await image.withMetadata().png().toBuffer();
     } catch (err) {
-      console.error(
-        'Error to process the image of',
-        hash,
-        'error msg:',
-        err.message || err
-      );
+      const errMsg = `ipfs - error to process the image of ${hash}, error msg: ${err.message || err}`
+      Sentry.captureException(errMsg);
       return Promise.reject(err.message || err);
     }
   }
